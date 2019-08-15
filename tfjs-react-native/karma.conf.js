@@ -18,16 +18,21 @@
 const karmaTypescriptConfig = {
   tsconfig: 'tsconfig.json',
   reports: {},
+  // Disable coverage reports and instrumentation by default for tests
+  coverageOptions: {instrumentation: false},
+  reports: {},
   bundlerOptions: {
+    sourceMap: true,
     // Start from test files to control what karma typescript loads
     // and ensure that environment setup happens appropriately.
     entrypoints: /_test\.(ts)$/,
     // Mock react native functionality to enable unit tests in the browser.
     resolve: {
       alias: {
-        'react-native': './test/utils/react_native_mock.ts',
+        'react-native': './src/test_utils/react_native_mock.ts',
         '@react-native-community/async-storage':
-            './test/utils/async_storage_mock.ts',
+            './src/test_utils/async_storage_mock.ts',
+        'expo-gl': './src/test_utils/gl_view_mock.ts',
       }
     }
   }
@@ -37,38 +42,50 @@ const baseConfig = {
   frameworks: ['jasmine', 'karma-typescript'],
   files: [
     './src/**/*.ts',
-    './test/**/*.ts',
   ],
   preprocessors: {
     'src/**/*.ts': ['karma-typescript'],
-    'test/**/*.ts': ['karma-typescript'],
   },
   karmaTypescriptConfig,
   reporters: ['verbose', 'karma-typescript'],
 };
 
+const browserstackConfig = {
+  ...baseConfig,
+  reporters: ['dots'],
+  singleRun: true,
+  hostname: 'bs-local.com',
+  browserStack: {
+    username: process.env.BROWSERSTACK_USERNAME,
+    accessKey: process.env.BROWSERSTACK_KEY
+  },
+  captureTimeout: 120000,
+  reportSlowerThan: 500,
+  browserNoActivityTimeout: 180000,
+};
+
 module.exports = function(config) {
   const args = [];
+
   if (config.grep) {
     args.push('--grep', config.grep);
   }
 
+  let extraConfig = config.browserstack ? browserstackConfig : baseConfig;
+
   config.set({
-    ...baseConfig,
     basePath: '',
-    frameworks: ['jasmine', 'karma-typescript'],
-    preprocessors: {'**/*.ts': ['karma-typescript']},
     karmaTypescriptConfig,
     reporters: ['progress', 'karma-typescript'],
     port: 9876,
     colors: true,
     autoWatch: false,
     browsers: ['Chrome'],
-    singleRun: true,
     client: {
       jasmine: {random: false},
       args: args,
     },
+    ...extraConfig,
     customLaunchers: {
       // For browserstack configs see:
       // https://www.browserstack.com/automate/node
